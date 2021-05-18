@@ -28,10 +28,12 @@ def wordcloud(words, image_file = "avataaars.png"):
     from PIL import Image
     import numpy as np
     
-    import spy
-    import pathlib
-    image_file = pathlib.Path(spy.__file__).parent / 'avataaars.png'
-    img = Image.open(image_file) 
+    im_url = "https://images.pexels.com/photos/1148496/pexels-photo-1148496.jpeg"
+    import requests
+    from io import BytesIO
+    response = requests.get(im_url, 
+                                verify = False)
+    img = Image.open(BytesIO(response.content)).convert('RGB')
     img_coloring = np.array(img)
     
     firstcloud = WordCloud(mask = img_coloring,

@@ -2,7 +2,10 @@ import streamlit as st
 import pandas as pd
 import plotly.offline as plotly
 import plotly.graph_objs as go
-# import 
+
+import sys
+sys.path.append("../../Utils")
+import viz
 
 from streamlit_utils.url_scrape import get_content, get_sentences
 from streamlit_utils.wordcloud import ldaify, wordcloud, show_wc
@@ -34,8 +37,8 @@ proceeding to produce multiple NLP outputs. Click through and enjoy!''')
             st.sidebar.markdown('<hr>', unsafe_allow_html = True)
             st.sidebar.markdown('### Named Entity Analysis')
             ner = st.sidebar.button('NER')
-            st.sidebar.markdown('### Sentiment Analysis')
-            sentmnt = st.sidebar.text_input('Input Topic', value='')
+            # st.sidebar.markdown('### Sentiment Analysis')
+            # sentmnt = st.sidebar.text_input('Input Topic', value='')
             st.sidebar.markdown('### Topic Analysis')
             topics = st.sidebar.button('LDA Modelling')
             
@@ -44,18 +47,18 @@ proceeding to produce multiple NLP outputs. Click through and enjoy!''')
                 combi = " ".join(sents)
                 ndf = ner_e(combi)
                 
-                from spy import viz
+                # from spy import viz
                 st.plotly_chart(viz.plotlys(ndf[:10], x = 'Text', y = 'Count', group= 'Likely Entity Type', kind = 'Bar', 
                                             tickangle=90, title = 'NER Counts', xtitle=''))
                 st.markdown('<hr>', unsafe_allow_html = True)
                 st.write(ndf)
             
-            if sentmnt!='' and not topics and not ner:
-                # topic = st.text_input('Enter your subject', value='')
-                # if topic != '':
-                with st.spinner('Processing Article'):
-                    fig = sent_viz(sents, topic = sentmnt)
-                    st.plotly_chart(fig)
+            # if sentmnt!='' and not topics and not ner:
+            #     # topic = st.text_input('Enter your subject', value='')
+            #     # if topic != '':
+            #     with st.spinner('Processing Article'):
+            #         fig = sent_viz(sents, topic = sentmnt)
+            #         st.plotly_chart(fig)
             
             if topics:
                 sentmnt=''
@@ -107,20 +110,20 @@ def scat_text(pres):
                         ]
     return base
 
-# @st.cache()
-def sent_viz(sents, topic = 'NBN'):
-    from streamlit_utils.scrape_nlp import patterns, sentiment
-    patts = patterns(sents, topic)
-    show = [x.strip() for x in patts[10:20]]
-    pres = pd.DataFrame(show, columns = ['text'])
-    pres = pd.concat([pres.reset_index()[['text']], pd.DataFrame(sentiment(show))], axis = 1)
-    pres['maxval'] = pres[['negative', 'neutral', 'positive']].max(axis=1)
-    pres['maxcol'] = pres[['negative', 'neutral', 'positive']].idxmax(axis=1)
+# # @st.cache()
+# def sent_viz(sents, topic = 'NBN'):
+#     from streamlit_utils.scrape_nlp import patterns, sentiment
+#     patts = patterns(sents, topic)
+#     show = [x.strip() for x in patts[10:20]]
+#     pres = pd.DataFrame(show, columns = ['text'])
+#     pres = pd.concat([pres.reset_index()[['text']], pd.DataFrame(sentiment(show))], axis = 1)
+#     pres['maxval'] = pres[['negative', 'neutral', 'positive']].max(axis=1)
+#     pres['maxcol'] = pres[['negative', 'neutral', 'positive']].idxmax(axis=1)
 
-    from spy import viz
-    fig = go.Figure(scat_text(pres), viz.plotly_layout(title = 'Sentiment', xtitle = 'Negative', ytitle = 'Positive'))
-    fig.update_layout(hovermode = 'closest')
-    return fig
+#     from spy import viz
+#     fig = go.Figure(scat_text(pres), viz.plotly_layout(title = 'Sentiment', xtitle = 'Negative', ytitle = 'Positive'))
+#     fig.update_layout(hovermode = 'closest')
+#     return fig
 
 if __name__ == "__main__":
     main()
