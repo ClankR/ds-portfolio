@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.offline as plotly
 import plotly.graph_objs as go
+import os
 
 import sys
 sys.path.append("../../Utils")
@@ -24,7 +25,6 @@ def main():
 proceeding to produce multiple NLP outputs. Click through and enjoy!''')
     st.sidebar.title('URL Entry')
     url = st.sidebar.text_input('Enter your article\'s url:', value='')
-    
     
     if url != '':
         with st.spinner('Extracting Article'):
@@ -67,8 +67,8 @@ proceeding to produce multiple NLP outputs. Click through and enjoy!''')
                 with st.spinner('Preparing LDA Visual'):
                     ldavis = pyLDAvis.sklearn.prepare(model[0], model[1], 
                                                     model[2], mds='tsne')
-                    pyLDAvis.save_html(ldavis, 'hmm2.html')
-                    st.markdown('<a href="file:///Users/mitchsa/Documents/ClankR/Examples/NLP/hmm2.html"><ul><li>Right click</li><li>Select "Copy Link Address"</li><li>Open a new tab and paste</li></a>', 
+                    pyLDAvis.save_html(ldavis, 'LDA.html')
+                    st.markdown(f'<a href="file:///{os.getcwd()}/LDA.html"><ul><li>Right click</li><li>Select "Copy Link Address"</li><li>Open a new tab and paste</li></a>', 
                                 unsafe_allow_html = True)
 
             
