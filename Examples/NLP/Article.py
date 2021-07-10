@@ -60,7 +60,7 @@ def ldaify(dump, num_features = 1000, num_topics = 5):
     lda = LatentDirichletAllocation(n_components=num_topics, max_iter=5, learning_method='online', learning_offset=50.,random_state=0).fit(tf2)
 
     words = [tf_feature_names[i] for i in lda.components_[2].argsort()[:-500 - 1 :-1]]
-    return words#, [lda, tf2, tf_vectorizer]
+    return words, {'model': lda, 'transform':tf2, 'vector':tf_vectorizer}
 
 def wordclouds(words, image_file = None, image_url = None):
     '''
@@ -95,10 +95,10 @@ def wordclouds(words, image_file = None, image_url = None):
     
 def show_wc(firstcloud, image_colors):
     import matplotlib.pyplot as plt
-    plt.figure(figsize=(12,8), facecolor = (0,0,0)) 
+    fig = plt.figure(figsize=(24,8), facecolor = (0,0,0))
     plt.imshow(firstcloud.recolor(color_func=image_colors), interpolation="bilinear")
-    plt.axis('off')
-    return plt
+    # plt.axis('off')
+    # return plt
 
 class Art:
 
@@ -110,11 +110,19 @@ class Art:
             article.download()
             article.parse()
             text = article.text
+            title = article.title
         else:
             text = inp
+        
+        if title:
+            self.title = title
+        else:
+            self.title = ''
 
         self.doc = re.sub('\s+', ' ', 
-                        text.replace('\n', ' ').replace("’", "'").replace('“', '"').replace('”', '"')).strip()
+                        text.replace('\n', ' ').replace("’", "'").\
+                            replace('“', '"').replace('”', '"').replace('...', '')).strip()
+        self.sents = [x.strip() for x in self.doc.split('. ')]
         
     def ner(self, ent_list = ['GPE', 'ORG', 'PERSON', 'NORP', 'PRODUCT', 'LOC']):
         ##NER
@@ -129,23 +137,40 @@ class Art:
     
     def summ(self, n=3, Sum = None):
         ##Summarisation
-        sents = sumy_sum(re.sub('\s+', ' ', 
+        summs = sumy_sum(re.sub('\s+', ' ', 
                         self.doc.replace('\n', ' ').replace("’s", "'s")).strip(), 
                         n=n, Sum = Sum)
-        sent_df = sent_add(sents)
+        summ_df = sent_add(summs)
         syn = []
-        for sent in sent_df.text:
+        for sent in summ_df.text:
             words = nlp(sent)
             deps = [str(words[words[word.i].left_edge.i:words[word.i].right_edge.i+1])
                 for word in words if (word.dep_ == 'nsubj') & (word.text not in sw)]
             syn.append(deps)
-        sent_df['subjects'] = syn
+        summ_df['subjects'] = syn
+        self.summ_df = summ_df
+    
+    def sent(self, topic = ''):
+        topic = topic.lower()
+        tops = [x for x in self.sents if topic in x.lower()]
+        if tops == []:
+            # print('Topic not found')
+            raise ValueError('Topic not found')
+        sent_df = sent_add(tops)
         self.sent_df = sent_df
             
     def wordcloud(self, num_features = 1000, topics = 5, image_file = None, image_url = None):
-        firstcloud, image_colours = wordclouds(ldaify([x.strip() for x in self.doc.split()]))
+        words, _ = ldaify([x.strip() for x in self.doc.split()], num_features = num_features, 
+                    num_topics = topics)
+        firstcloud, image_colours = wordclouds(words)
         self.cloud = firstcloud
         self.c_colours = image_colours
+
+    def lda_mod(self, num_features = 1000, topics = 5):
+        _, mod = ldaify([x.strip() for x in self.doc.split()],
+                    num_features = num_features, 
+                    num_topics = topics)
+        self.model = mod
         
     def show_cloud(self):
         show_wc(self.cloud, self.c_colours)

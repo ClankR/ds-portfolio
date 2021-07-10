@@ -256,7 +256,7 @@ def plotlys(df, x,
                height = 500, width = 600, tickangle = 0
               ):
     """
-    To have nbn branded plots created in a single line, with simple grouping and formatting.
+    To have branded plots created in a single line, with simple grouping and formatting.
     
     Accepts Pandas DF - ensure it is pre aggregated for grouped visuals.
     Select one of 'Hist' (Histogram), 'Bar', or 'Scat' (Scatter) to produce a suitable plot.

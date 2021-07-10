@@ -1,23 +1,17 @@
 import streamlit as st
 import pandas as pd
-import plotly.offline as plotly
-import plotly.graph_objs as go
+import plotly.express as pe
 import os
-
 import sys
-sys.path.append("../../Utils")
-import viz
+import textwrap
 
-from streamlit_utils.url_scrape import get_content, get_sentences
-from streamlit_utils.wordcloud import ldaify, wordcloud, show_wc
+sys.path.append("../../NLP")
+from Article import Art
 
-@st.cache()
+@st.cache(allow_output_mutation=True)
 def get_sents(url):
-    sents, title = get_sentences(get_content(url))
-    sents = [x.strip() for x in ".".join(sents).split('.')]
-    words, model = ldaify(sents)
-    return sents, title, words, model
-
+    doc = Art(url)
+    return doc
 
 def main():
     st.title('NLP\'ing an article!')
@@ -28,102 +22,61 @@ proceeding to produce multiple NLP outputs. Click through and enjoy!''')
     
     if url != '':
         with st.spinner('Extracting Article'):
-            sents, title, words, model = get_sents(url)
-            st.markdown(f'Article Title: {title}')
-            firstcloud, image_colors = wordcloud(words)
-            plt = show_wc(firstcloud, image_colors)
-            st.sidebar.pyplot(plt)
-
+            doc = get_sents(url)
+            st.markdown(f'Article Title: {doc.title}')
+            doc.wordcloud()
+            st.sidebar.image(doc.cloud.recolor(color_func = doc.c_colours).to_array())
+            
             st.sidebar.markdown('<hr>', unsafe_allow_html = True)
+            st.sidebar.markdown('### Article Summary')
+            summary = st.sidebar.button('Summary')
             st.sidebar.markdown('### Named Entity Analysis')
             ner = st.sidebar.button('NER')
-            # st.sidebar.markdown('### Sentiment Analysis')
-            # sentmnt = st.sidebar.text_input('Input Topic', value='')
-            st.sidebar.markdown('### Topic Analysis')
-            topics = st.sidebar.button('LDA Modelling')
+            st.sidebar.markdown('### Sentiment Analysis')
+            sentmnt = st.sidebar.text_input('Input Topic', value='')
+            st.sidebar.markdown('### LDA Topic Analysis')
+            topics = st.sidebar.text_input('Input Number of Topics', value='')
             
+            if summary:
+                doc.summ()
+                st.table(doc.summ_df)
+
             if ner:
-                from streamlit_utils.ner_extract import ner_e
-                combi = " ".join(sents)
-                ndf = ner_e(combi)
-                
-                # from spy import viz
-                st.plotly_chart(viz.plotlys(ndf[:10], x = 'Text', y = 'Count', group= 'Likely Entity Type', kind = 'Bar', 
-                                            tickangle=90, title = 'NER Counts', xtitle=''))
+                doc.ner()
+                st.plotly_chart(pe.bar(data_frame = doc.ner_df, x = 'Text', 
+                                    y = 'Count', color = 'Likely Entity Type', 
+                                    title = 'Named Entity Counts'))
                 st.markdown('<hr>', unsafe_allow_html = True)
-                st.write(ndf)
+                st.dataframe(doc.ner_df)
             
-            # if sentmnt!='' and not topics and not ner:
-            #     # topic = st.text_input('Enter your subject', value='')
-            #     # if topic != '':
-            #     with st.spinner('Processing Article'):
-            #         fig = sent_viz(sents, topic = sentmnt)
-            #         st.plotly_chart(fig)
+            if sentmnt!='' and topics=='':
+                with st.spinner('Processing Article'):
+                    try:
+
+                        doc.sent(sentmnt)
+                        temp = doc.sent_df
+                        st.write(temp)
+                        temp['clean'] = [textwrap.fill(x, 64).replace('\n', '<br>') for x in temp.text]
+                        st.plotly_chart(pe.scatter(doc.sent_df, x = 'neg', y = 'pos', 
+                                    color = 'sentiment', size = 'neu', hover_name = 'clean'))
+                        sentmnt = ''
+                    except:
+                        st.error(f'Topic {sentmnt} Not Found')
             
-            if topics:
-                sentmnt=''
+            if topics and sentmnt == '' and not ner and not summary:
                 import pyLDAvis
                 import pyLDAvis.sklearn
                 with st.spinner('Preparing LDA Visual'):
-                    ldavis = pyLDAvis.sklearn.prepare(model[0], model[1], 
-                                                    model[2], mds='tsne')
+                    doc.lda_mod(topics = int(topics))
+                    ldavis = pyLDAvis.sklearn.prepare(doc.model.get('model'), 
+                                                        doc.model.get('transform'), 
+                                                        doc.model.get('vector'), mds='tsne')
                     pyLDAvis.save_html(ldavis, 'LDA.html')
-                    st.markdown(f'<a href="file:///{os.getcwd()}/LDA.html"><ul><li>Right click</li><li>Select "Copy Link Address"</li><li>Open a new tab and paste</li></a>', 
+                    st.markdown(f'<a href="file:///{os.getcwd()}/LDA.html"><ol><li>Right click</li><li>Select "Copy Link Address"</li><li>Open a new tab and paste</li></a>', 
                                 unsafe_allow_html = True)
+                    topics = ''
 
-            
-            
 
-                
-
-        
-def scat_text(pres):
-    df = pres.copy()
-    group = 'maxcol'
-    colours = ['midnightblue','darkmagenta', 'seagreen', 'firebrick','#f4bc61', 
-           '#546886', '#4ba4c6','mediumseagreen','lightcoral']   
-    coloursIdx = dict(zip(df[group].unique(), colours))
-    # pd.options.display.max_colwidth = 500
-    # print([text.strip() for text in df.text])
-    base = [
-                            go.Scatter(
-                                opacity = 0.75,
-                                x = df[df[group]==val]['negative'],
-                                y = df[df[group]==val]['positive'],
-                                name = val,
-                                marker = dict(size = 16,
-                                              color = coloursIdx.get(val),
-                                              line=dict(
-                                                        color='white',
-                                                        width=1,
-                                                    )),
-                                mode = 'markers',
-
-                                hovertext = [text[:text.rfind(' ', 0, 80)]+"<br>"+text[text.rfind(' ', 0, 80)+1:] if (len(text)>80) & (len(text)<=160)
-                                            else text[:text.rfind(' ', 0, 80)]+"<br>"+text[text.rfind(' ', 0, 80)+1:text.rfind(' ', 0, 160)]+"<br>"+text[text.rfind(' ', 0, 160)+1:240] if len(text)>160  
-                                            else text 
-                                            for text in [text.strip() for text in df[df[group]==val]['text']]],
-
-                                hoverinfo = 'text'
-                        ) for val in df[group].unique()
-
-                        ]
-    return base
-
-# # @st.cache()
-# def sent_viz(sents, topic = 'NBN'):
-#     from streamlit_utils.scrape_nlp import patterns, sentiment
-#     patts = patterns(sents, topic)
-#     show = [x.strip() for x in patts[10:20]]
-#     pres = pd.DataFrame(show, columns = ['text'])
-#     pres = pd.concat([pres.reset_index()[['text']], pd.DataFrame(sentiment(show))], axis = 1)
-#     pres['maxval'] = pres[['negative', 'neutral', 'positive']].max(axis=1)
-#     pres['maxcol'] = pres[['negative', 'neutral', 'positive']].idxmax(axis=1)
-
-#     from spy import viz
-#     fig = go.Figure(scat_text(pres), viz.plotly_layout(title = 'Sentiment', xtitle = 'Negative', ytitle = 'Positive'))
-#     fig.update_layout(hovermode = 'closest')
-#     return fig
 
 if __name__ == "__main__":
     main()
